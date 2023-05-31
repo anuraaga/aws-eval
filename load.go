@@ -49,7 +49,9 @@ func main() {
 
 func runRedis() {
 	for i := 0; i < 10000; i++ {
-		log.Println("iteration", i)
+		if i%10 == 0 {
+			log.Println("iteration", i)
+		}
 		if err := run(redisBackend); err != nil {
 			panic(err)
 		}
@@ -57,8 +59,10 @@ func runRedis() {
 }
 
 func runMemcached() {
-	for i := 0; i < 10000; i++ {
-		log.Println("iteration", i)
+	for i := 0; i < 100; i++ {
+		if i%10 == 0 {
+			log.Println("iteration", i)
+		}
 		if err := run(memcachedBackend); err != nil {
 			panic(err)
 		}
@@ -66,13 +70,11 @@ func runMemcached() {
 }
 
 func run(b backend) error {
-	defer func() {
-		if resp, err := http.Post(b.resetURL, "", nil); err != nil {
-			panic(err)
-		} else {
-			defer resp.Body.Close()
-		}
-	}()
+	if resp, err := http.Post(b.resetURL, "", nil); err != nil {
+		panic(err)
+	} else {
+		defer resp.Body.Close()
+	}
 
 	wg := sync.WaitGroup{}
 	start := sync.WaitGroup{}

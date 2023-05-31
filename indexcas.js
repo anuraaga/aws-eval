@@ -9,19 +9,58 @@ const MAX_EXPIRATION = 60 * 60 * 24 * 30;
 const memcachedClient = new memcached(`${process.env.ENDPOINT}:${process.env.PORT}`);
 exports.chargeRequestRedis = async function (input) {
     const redisClient = await getRedisClient();
-    var charges = getCharges();
-    let remainingBalance = await chargeRedis(redisClient, KEY, charges);
-    let isAuthorized = true;
-    if (remainingBalance < 0) {
-        isAuthorized = false;
-        remainingBalance = await revertChargeRedis(redisClient, KEY, charges);
-    }
+    const charges = getCharges();
+    const ret = new Promise(async (resolve, reject) => {
+        for (let attempts = 0; attempts < 100; attempts++) {
+            let attempt = attempts;
+            const r = new Promise((resolve, reject) => {
+                redisClient.watch(KEY, async function (watchError) {
+                    if (watchError) {
+                        reject(watchError);
+                    }
+
+                    let remainingBalance = await getBalanceRedis(redisClient, KEY);
+                    const isAuthorized = authorizeRequest(remainingBalance, charges);
+                    if (!isAuthorized) {
+                        resolve({
+                            remainingBalance,
+                            isAuthorized,
+                            charges: 0,
+                        });
+                    }
+                    let newBalance = remainingBalance - charges;
+                    redisClient.multi()
+                        .set(KEY, newBalance)
+                        .exec((multiExecError, results) => {
+                            if (multiExecError) {
+                                reject(multiExecError);
+                            } else if (!results) {
+                                reject(new Error("Transaction aborted"));
+                            } else {
+                                resolve({
+                                    remainingBalance: newBalance,
+                                    charges,
+                                    isAuthorized,
+                                })
+                            }
+                        });
+                });
+            });
+            try {
+                resolve(await r);
+            } catch (e) {
+                if (attempt < 99) {
+                    continue;
+                } else {
+                    reject(e);
+                }
+            }
+        }
+    });
+
+    const res = await ret;
     await disconnectRedis(redisClient);
-    return {
-        remainingBalance,
-        charges,
-        isAuthorized,
-    };
+    return res;
 };
 exports.resetRedis = async function () {
     const redisClient = await getRedisClient();
@@ -116,6 +155,10 @@ function authorizeRequest(remainingBalance, charges) {
 }
 function getCharges() {
     return DEFAULT_BALANCE / 20;
+}
+async function getBalanceRedis(redisClient, key) {
+    const res = await util.promisify(redisClient.get).bind(redisClient).call(redisClient, key);
+    return parseInt(res || "0");
 }
 async function chargeRedis(redisClient, key, charges) {
     return util.promisify(redisClient.decrby).bind(redisClient).call(redisClient, key, charges);
