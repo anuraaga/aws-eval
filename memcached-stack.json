@@ -1,0 +1,949 @@
+{
+  "Parameters": {
+    "SecurityGroupId": {
+      "Type": "String",
+      "Description": "Default Security Group Id for Default VPC"
+    },
+    "SubnetIds": {
+      "Type": "CommaDelimitedList",
+      "Description": "Subnet Ids"
+    },
+    "AvailabilityZones": {
+      "Type": "CommaDelimitedList",
+      "Description": "Availability Zones"
+    },
+    "VpcId": {
+      "Type": "String",
+      "Description": "Default VPC Id"
+    },
+    "CodeBucketArn": {
+      "Type": "String",
+      "Description": "Lambda Code Bucket Arn"
+    },
+    "CodeBucketKey": {
+      "Type": "String",
+      "Description": "Lambda Code Bucket Key"
+    }
+  },
+  "Resources": {
+    "memcachedstackservermemcachedstackserversubnetgrp701FC6A1": {
+      "Type": "AWS::ElastiCache::SubnetGroup",
+      "Properties": {
+        "Description": "subnet grp for memcached server",
+        "SubnetIds": {
+          "Ref": "SubnetIds"
+        },
+        "CacheSubnetGroupName": "memcached-stack-server-subnet-grp"
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-server/memcached-stack-server-subnet-grp"
+      }
+    },
+    "memcachedstackservermemcachedstackservercluster8E2F2DF0": {
+      "Type": "AWS::ElastiCache::CacheCluster",
+      "Properties": {
+        "CacheNodeType": "cache.t2.micro",
+        "Engine": "memcached",
+        "NumCacheNodes": 1,
+        "CacheSubnetGroupName": "memcached-stack-server-subnet-grp",
+        "ClusterName": "memcached-stack-server-cluster",
+        "Port": 6379,
+        "VpcSecurityGroupIds": [
+          {
+            "Ref": "SecurityGroupId"
+          }
+        ]
+      },
+      "DependsOn": [
+        "memcachedstackservermemcachedstackserversubnetgrp701FC6A1"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-server/memcached-stack-server-cluster"
+      }
+    },
+    "memcachedstackchargerequestmemcachedlambdamemcachedstackchargerequestmemcachedlambdafnServiceRole92B8A800": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+              ]
+            ]
+          },
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+              ]
+            ]
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-charge_request_memcached-lambda/memcached-stack-charge_request_memcached-lambda-fn/ServiceRole/Resource"
+      }
+    },
+    "memcachedstackchargerequestmemcachedlambdamemcachedstackchargerequestmemcachedlambdafn0DA8BA5E": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Select": [
+              0,
+              {
+                "Fn::Split": [
+                  "/",
+                  {
+                    "Fn::Select": [
+                      5,
+                      {
+                        "Fn::Split": [
+                          ":",
+                          {
+                            "Ref": "CodeBucketArn"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "S3Key": {
+            "Ref": "CodeBucketKey"
+          }
+        },
+        "Handler": "index.chargeRequestMemcached",
+        "Role": {
+          "Fn::GetAtt": [
+            "memcachedstackchargerequestmemcachedlambdamemcachedstackchargerequestmemcachedlambdafnServiceRole92B8A800",
+            "Arn"
+          ]
+        },
+        "Runtime": "nodejs18.x",
+        "Description": "charge_request_memcached lambda",
+        "Environment": {
+          "Variables": {
+            "ENDPOINT": {
+              "Fn::GetAtt": [
+                "memcachedstackservermemcachedstackservercluster8E2F2DF0",
+                "ConfigurationEndpoint.Address"
+              ]
+            },
+            "PORT": {
+              "Fn::GetAtt": [
+                "memcachedstackservermemcachedstackservercluster8E2F2DF0",
+                "ConfigurationEndpoint.Port"
+              ]
+            }
+          }
+        },
+        "FunctionName": "memcached-stack-charge_request_memcached-lambda-fn",
+        "MemorySize": 128,
+        "Timeout": 1,
+        "VpcConfig": {
+          "SecurityGroupIds": [
+            {
+              "Ref": "SecurityGroupId"
+            }
+          ],
+          "SubnetIds": {
+            "Ref": "SubnetIds"
+          }
+        }
+      },
+      "DependsOn": [
+        "memcachedstackchargerequestmemcachedlambdamemcachedstackchargerequestmemcachedlambdafnServiceRole92B8A800"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-charge_request_memcached-lambda/memcached-stack-charge_request_memcached-lambda-fn/Resource"
+      }
+    },
+    "memcachedstackresetmemcachedlambdamemcachedstackresetmemcachedlambdafnServiceRole028DEE32": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+              ]
+            ]
+          },
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+              ]
+            ]
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-reset_memcached-lambda/memcached-stack-reset_memcached-lambda-fn/ServiceRole/Resource"
+      }
+    },
+    "memcachedstackresetmemcachedlambdamemcachedstackresetmemcachedlambdafn5338E946": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Select": [
+              0,
+              {
+                "Fn::Split": [
+                  "/",
+                  {
+                    "Fn::Select": [
+                      5,
+                      {
+                        "Fn::Split": [
+                          ":",
+                          {
+                            "Ref": "CodeBucketArn"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "S3Key": {
+            "Ref": "CodeBucketKey"
+          }
+        },
+        "Handler": "index.resetMemcached",
+        "Role": {
+          "Fn::GetAtt": [
+            "memcachedstackresetmemcachedlambdamemcachedstackresetmemcachedlambdafnServiceRole028DEE32",
+            "Arn"
+          ]
+        },
+        "Runtime": "nodejs18.x",
+        "Description": "reset_memcached lambda",
+        "Environment": {
+          "Variables": {
+            "ENDPOINT": {
+              "Fn::GetAtt": [
+                "memcachedstackservermemcachedstackservercluster8E2F2DF0",
+                "ConfigurationEndpoint.Address"
+              ]
+            },
+            "PORT": {
+              "Fn::GetAtt": [
+                "memcachedstackservermemcachedstackservercluster8E2F2DF0",
+                "ConfigurationEndpoint.Port"
+              ]
+            }
+          }
+        },
+        "FunctionName": "memcached-stack-reset_memcached-lambda-fn",
+        "MemorySize": 128,
+        "Timeout": 1,
+        "VpcConfig": {
+          "SecurityGroupIds": [
+            {
+              "Ref": "SecurityGroupId"
+            }
+          ],
+          "SubnetIds": {
+            "Ref": "SubnetIds"
+          }
+        }
+      },
+      "DependsOn": [
+        "memcachedstackresetmemcachedlambdamemcachedstackresetmemcachedlambdafnServiceRole028DEE32"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-reset_memcached-lambda/memcached-stack-reset_memcached-lambda-fn/Resource"
+      }
+    },
+    "memcachedstackapimemcachedstackapigateway9E5D88F7": {
+      "Type": "AWS::ApiGateway::RestApi",
+      "Properties": {
+        "Name": "memcached-stack-api-gateway"
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Resource"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewayCloudWatchRole35F12915": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+              ]
+            ]
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/CloudWatchRole/Resource"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewayAccount5B7F5ACB": {
+      "Type": "AWS::ApiGateway::Account",
+      "Properties": {
+        "CloudWatchRoleArn": {
+          "Fn::GetAtt": [
+            "memcachedstackapimemcachedstackapigatewayCloudWatchRole35F12915",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "memcachedstackapimemcachedstackapigateway9E5D88F7"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Account"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewayDeploymentDD3C01A6bf9cd7a3407dda1a8f948c7b50920e7a": {
+      "Type": "AWS::ApiGateway::Deployment",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+        },
+        "Description": "Automatically created by the RestApi construct"
+      },
+      "DependsOn": [
+        "memcachedstackapimemcachedstackapigatewaychargerequestmemcachedPOSTAE08044B",
+        "memcachedstackapimemcachedstackapigatewaychargerequestmemcached716B0B1E",
+        "memcachedstackapimemcachedstackapigatewayGET48A35A21",
+        "memcachedstackapimemcachedstackapigatewayresetmemcachedPOST8E9E2FDF",
+        "memcachedstackapimemcachedstackapigatewayresetmemcached7DAA8B13"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Deployment/Resource"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewayDeploymentStageprodE345D234": {
+      "Type": "AWS::ApiGateway::Stage",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+        },
+        "DeploymentId": {
+          "Ref": "memcachedstackapimemcachedstackapigatewayDeploymentDD3C01A6bf9cd7a3407dda1a8f948c7b50920e7a"
+        },
+        "StageName": "prod"
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/DeploymentStage.prod/Resource"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewayGET48A35A21": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "HttpMethod": "GET",
+        "ResourceId": {
+          "Fn::GetAtt": [
+            "memcachedstackapimemcachedstackapigateway9E5D88F7",
+            "RootResourceId"
+          ]
+        },
+        "RestApiId": {
+          "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+        },
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "Type": "MOCK"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Default/GET/Resource"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewaychargerequestmemcached716B0B1E": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "ParentId": {
+          "Fn::GetAtt": [
+            "memcachedstackapimemcachedstackapigateway9E5D88F7",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "charge-request-memcached",
+        "RestApiId": {
+          "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Default/charge-request-memcached/Resource"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewaychargerequestmemcachedPOSTApiPermissionmemcachedstackmemcachedstackapimemcachedstackapigateway49FCE82BPOSTchargerequestmemcachedE87771AA": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "memcachedstackchargerequestmemcachedlambdamemcachedstackchargerequestmemcachedlambdafn0DA8BA5E",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+              },
+              "/",
+              {
+                "Ref": "memcachedstackapimemcachedstackapigatewayDeploymentStageprodE345D234"
+              },
+              "/POST/charge-request-memcached"
+            ]
+          ]
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Default/charge-request-memcached/POST/ApiPermission.memcachedstackmemcachedstackapimemcachedstackapigateway49FCE82B.POST..charge-request-memcached"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewaychargerequestmemcachedPOSTApiPermissionTestmemcachedstackmemcachedstackapimemcachedstackapigateway49FCE82BPOSTchargerequestmemcachedB17B081C": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "memcachedstackchargerequestmemcachedlambdamemcachedstackchargerequestmemcachedlambdafn0DA8BA5E",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+              },
+              "/test-invoke-stage/POST/charge-request-memcached"
+            ]
+          ]
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Default/charge-request-memcached/POST/ApiPermission.Test.memcachedstackmemcachedstackapimemcachedstackapigateway49FCE82B.POST..charge-request-memcached"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewaychargerequestmemcachedPOSTAE08044B": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "HttpMethod": "POST",
+        "ResourceId": {
+          "Ref": "memcachedstackapimemcachedstackapigatewaychargerequestmemcached716B0B1E"
+        },
+        "RestApiId": {
+          "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+        },
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200"
+            }
+          ],
+          "Type": "AWS",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region"
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "memcachedstackchargerequestmemcachedlambdamemcachedstackchargerequestmemcachedlambdafn0DA8BA5E",
+                    "Arn"
+                  ]
+                },
+                "/invocations"
+              ]
+            ]
+          }
+        },
+        "MethodResponses": [
+          {
+            "StatusCode": "200"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Default/charge-request-memcached/POST/Resource"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewayresetmemcached7DAA8B13": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "ParentId": {
+          "Fn::GetAtt": [
+            "memcachedstackapimemcachedstackapigateway9E5D88F7",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "reset-memcached",
+        "RestApiId": {
+          "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Default/reset-memcached/Resource"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewayresetmemcachedPOSTApiPermissionmemcachedstackmemcachedstackapimemcachedstackapigateway49FCE82BPOSTresetmemcached32D638AE": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "memcachedstackresetmemcachedlambdamemcachedstackresetmemcachedlambdafn5338E946",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+              },
+              "/",
+              {
+                "Ref": "memcachedstackapimemcachedstackapigatewayDeploymentStageprodE345D234"
+              },
+              "/POST/reset-memcached"
+            ]
+          ]
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Default/reset-memcached/POST/ApiPermission.memcachedstackmemcachedstackapimemcachedstackapigateway49FCE82B.POST..reset-memcached"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewayresetmemcachedPOSTApiPermissionTestmemcachedstackmemcachedstackapimemcachedstackapigateway49FCE82BPOSTresetmemcached954C6931": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "memcachedstackresetmemcachedlambdamemcachedstackresetmemcachedlambdafn5338E946",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+              },
+              "/test-invoke-stage/POST/reset-memcached"
+            ]
+          ]
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Default/reset-memcached/POST/ApiPermission.Test.memcachedstackmemcachedstackapimemcachedstackapigateway49FCE82B.POST..reset-memcached"
+      }
+    },
+    "memcachedstackapimemcachedstackapigatewayresetmemcachedPOST8E9E2FDF": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "HttpMethod": "POST",
+        "ResourceId": {
+          "Ref": "memcachedstackapimemcachedstackapigatewayresetmemcached7DAA8B13"
+        },
+        "RestApiId": {
+          "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+        },
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200"
+            }
+          ],
+          "Type": "AWS",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region"
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "memcachedstackresetmemcachedlambdamemcachedstackresetmemcachedlambdafn5338E946",
+                    "Arn"
+                  ]
+                },
+                "/invocations"
+              ]
+            ]
+          }
+        },
+        "MethodResponses": [
+          {
+            "StatusCode": "200"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/memcached-stack-api/memcached-stack-api-gateway/Default/reset-memcached/POST/Resource"
+      }
+    },
+    "CDKMetadata": {
+      "Type": "AWS::CDK::Metadata",
+      "Properties": {
+        "Modules": "aws-cdk=1.87.1,@aws-cdk/assets=1.76.0,@aws-cdk/aws-apigateway=1.76.0,@aws-cdk/aws-applicationautoscaling=1.76.0,@aws-cdk/aws-autoscaling-common=1.76.0,@aws-cdk/aws-certificatemanager=1.76.0,@aws-cdk/aws-cloudwatch=1.76.0,@aws-cdk/aws-codeguruprofiler=1.76.0,@aws-cdk/aws-ec2=1.76.0,@aws-cdk/aws-ecr=1.76.0,@aws-cdk/aws-ecr-assets=1.76.0,@aws-cdk/aws-efs=1.76.0,@aws-cdk/aws-elasticache=1.76.0,@aws-cdk/aws-elasticloadbalancingv2=1.76.0,@aws-cdk/aws-events=1.76.0,@aws-cdk/aws-iam=1.76.0,@aws-cdk/aws-kms=1.76.0,@aws-cdk/aws-lambda=1.76.0,@aws-cdk/aws-logs=1.76.0,@aws-cdk/aws-route53=1.76.0,@aws-cdk/aws-s3=1.76.0,@aws-cdk/aws-s3-assets=1.76.0,@aws-cdk/aws-sqs=1.76.0,@aws-cdk/aws-ssm=1.76.0,@aws-cdk/cloud-assembly-schema=1.76.0,@aws-cdk/core=1.76.0,@aws-cdk/cx-api=1.76.0,@aws-cdk/region-info=1.76.0,jsii-runtime=Java/11.0.9.1"
+      },
+      "Metadata": {
+        "aws:cdk:path": "memcached-stack/CDKMetadata/Default"
+      },
+      "Condition": "CDKMetadataAvailable"
+    }
+  },
+  "Outputs": {
+    "memcachedstackapimemcachedstackapigatewayEndpoint45963097": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "memcachedstackapimemcachedstackapigateway9E5D88F7"
+            },
+            ".execute-api.",
+            {
+              "Ref": "AWS::Region"
+            },
+            ".",
+            {
+              "Ref": "AWS::URLSuffix"
+            },
+            "/",
+            {
+              "Ref": "memcachedstackapimemcachedstackapigatewayDeploymentStageprodE345D234"
+            },
+            "/"
+          ]
+        ]
+      }
+    }
+  },
+  "Conditions": {
+    "CDKMetadataAvailable": {
+      "Fn::Or": [
+        {
+          "Fn::Or": [
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "ap-east-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "ap-northeast-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "ap-northeast-2"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "ap-south-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "ap-southeast-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "ap-southeast-2"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "ca-central-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "cn-north-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "cn-northwest-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "eu-central-1"
+              ]
+            }
+          ]
+        },
+        {
+          "Fn::Or": [
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "eu-north-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "eu-west-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "eu-west-2"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "eu-west-3"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "me-south-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "sa-east-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "us-east-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "us-east-2"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "us-west-1"
+              ]
+            },
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "AWS::Region"
+                },
+                "us-west-2"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
